@@ -18,6 +18,7 @@ func RegisterV0Routes(
 	mux.HandleFunc("/v0/health", v0.HealthHandler(cfg))
 	mux.HandleFunc("/v0/servers", v0.ServersHandler(registry))
 	mux.HandleFunc("/v0/servers/{id}", v0.ServersDetailHandler(registry))
+	mux.HandleFunc("/v0/search", v0.SearchHandler(registry))
 	mux.HandleFunc("/v0/ping", v0.PingHandler(cfg))
 	mux.HandleFunc("/v0/publish", v0.PublishHandler(registry, authService))
 

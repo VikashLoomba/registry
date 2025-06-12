@@ -121,9 +121,28 @@ func (db *MemoryDB) List(
 		for key, value := range filter {
 			switch key {
 			case "name":
-				if entry.Name != value.(string) {
+				// Handle regex filter for name
+				if valueMap, ok := value.(map[string]interface{}); ok {
+					if regexPattern, hasRegex := valueMap["$regex"].(string); hasRegex {
+						// Simple case-insensitive regex matching
+						options, _ := valueMap["$options"].(string)
+						if strings.Contains(options, "i") {
+							if !strings.Contains(strings.ToLower(entry.Name), strings.ToLower(regexPattern)) {
+								include = false
+							}
+						} else {
+							if !strings.Contains(entry.Name, regexPattern) {
+								include = false
+							}
+						}
+					}
+				} else if entry.Name != value.(string) {
 					include = false
 				}
+			case "packages.registry_name":
+				// For memory DB, we would need to check packages array
+				// Since memory DB uses simplified Server model, this filter is not fully implemented
+				// This would need ServerDetail data to work properly
 			case "repoUrl":
 				if entry.Repository.URL != value.(string) {
 					include = false

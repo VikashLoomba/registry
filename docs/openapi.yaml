@@ -46,6 +46,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerList'
+  /v0/search:
+    get:
+      summary: Search MCP servers
+      description: Search for MCP servers by name with optional filtering by registry
+      parameters:
+        - name: q
+          in: query
+          description: Search query string for text matching against server names (case-insensitive)
+          schema:
+            type: string
+          required: false
+        - name: registry_name
+          in: query
+          description: Filter results to only show servers available in the specified registry (e.g., "npm", "docker")
+          schema:
+            type: string
+          required: false
+        - name: limit
+          in: query
+          description: Maximum number of results to return (default 30, maximum 100)
+          schema:
+            type: integer
+            default: 30
+            maximum: 100
+            minimum: 1
+        - name: cursor
+          in: query
+          description: Pagination cursor for retrieving next set of results
+          schema:
+            type: string
+            format: uuid
+          required: false
+      responses:
+        '200':
+          description: A list of MCP servers matching the search criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerList'
+        '400':
+          description: Bad request (invalid parameters)
+          content:
+            text/plain:
+              schema:
+                type: string
   /v0/servers/{id}:
     get:
       summary: Get MCP server details

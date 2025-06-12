@@ -100,6 +100,8 @@ func (db *MongoDB) List(
 			mongoFilter["version_detail.version"] = v
 		case "name":
 			mongoFilter["name"] = v
+		case "packages.registry_name":
+			mongoFilter["packages.registry_name"] = v
 		default:
 			mongoFilter[k] = v
 		}
