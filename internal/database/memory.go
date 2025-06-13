@@ -317,6 +317,132 @@ func (db *MemoryDB) Close() error {
 	return nil
 }
 
+// ListDetails retrieves all ServerDetail entries with optional filtering and pagination
+func (db *MemoryDB) ListDetails(
+	ctx context.Context,
+	filter map[string]interface{},
+	cursor string,
+	limit int,
+) ([]*model.ServerDetail, string, error) {
+	if ctx.Err() != nil {
+		return nil, "", ctx.Err()
+	}
+
+	if limit <= 0 {
+		limit = 10 // Default limit
+	}
+
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	// Convert all entries to a slice for pagination
+	var allEntries []*model.ServerDetail
+	for _, entry := range db.entries {
+		// Create a deep copy of the ServerDetail
+		entryCopy := *entry
+		allEntries = append(allEntries, &entryCopy)
+	}
+
+	// Simple filtering implementation
+	var filteredEntries []*model.ServerDetail
+	for _, entry := range allEntries {
+		include := true
+
+		// Apply filters if any
+		for key, value := range filter {
+			switch key {
+			case "name":
+				// Handle regex filter for name
+				if valueMap, ok := value.(map[string]interface{}); ok {
+					if regexPattern, hasRegex := valueMap["$regex"].(string); hasRegex {
+						// Simple case-insensitive regex matching
+						options, _ := valueMap["$options"].(string)
+						if strings.Contains(options, "i") {
+							if !strings.Contains(strings.ToLower(entry.Name), strings.ToLower(regexPattern)) {
+								include = false
+							}
+						} else {
+							if !strings.Contains(entry.Name, regexPattern) {
+								include = false
+							}
+						}
+					}
+				} else if entry.Name != value.(string) {
+					include = false
+				}
+			case "packages.registry_name":
+				// Check if any package has the specified registry_name
+				hasRegistry := false
+				if registryName, ok := value.(string); ok {
+					for _, pkg := range entry.Packages {
+						if pkg.RegistryName == registryName {
+							hasRegistry = true
+							break
+						}
+					}
+				}
+				if !hasRegistry {
+					include = false
+				}
+			case "repoUrl":
+				if entry.Repository.URL != value.(string) {
+					include = false
+				}
+			case "serverDetail.id":
+				if entry.ID != value.(string) {
+					include = false
+				}
+			case "version":
+				if entry.VersionDetail.Version != value.(string) {
+					include = false
+				}
+				// Add more filter options as needed
+			}
+		}
+
+		if include {
+			filteredEntries = append(filteredEntries, entry)
+		}
+	}
+
+	// Find starting point for cursor-based pagination
+	startIdx := 0
+	if cursor != "" {
+		for i, entry := range filteredEntries {
+			if entry.ID == cursor {
+				startIdx = i + 1 // Start after the cursor
+				break
+			}
+		}
+	}
+
+	// Sort filteredEntries by ID for consistent pagination
+	sort.Slice(filteredEntries, func(i, j int) bool {
+		return filteredEntries[i].ID < filteredEntries[j].ID
+	})
+
+	// Apply pagination
+	endIdx := startIdx + limit
+	if endIdx > len(filteredEntries) {
+		endIdx = len(filteredEntries)
+	}
+
+	var result []*model.ServerDetail
+	if startIdx < len(filteredEntries) {
+		result = filteredEntries[startIdx:endIdx]
+	} else {
+		result = []*model.ServerDetail{}
+	}
+
+	// Determine next cursor
+	nextCursor := ""
+	if endIdx < len(filteredEntries) {
+		nextCursor = filteredEntries[endIdx-1].ID
+	}
+
+	return result, nextCursor, nil
+}
+
 // Connection returns information about the database connection
 func (db *MemoryDB) Connection() *ConnectionInfo {
 	return &ConnectionInfo{

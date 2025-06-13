@@ -7,8 +7,15 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/modelcontextprotocol/registry/internal/model"
 	"github.com/modelcontextprotocol/registry/internal/service"
 )
+
+// PaginatedResponseDetails is a paginated API response for server details
+type PaginatedResponseDetails struct {
+	Data     []model.ServerDetail `json:"servers"`
+	Metadata Metadata             `json:"metadata,omitempty"`
+}
 
 // SearchHandler returns a handler for searching registry items
 func SearchHandler(registry service.RegistryService) http.HandlerFunc {
@@ -58,15 +65,15 @@ func SearchHandler(registry service.RegistryService) http.HandlerFunc {
 			}
 		}
 
-		// Use the Search method to get filtered results
-		registries, nextCursor, err := registry.Search(query, registryName, cursor, limit)
+		// Use the SearchDetails method to get filtered results with full server details
+		registries, nextCursor, err := registry.SearchDetails(query, registryName, cursor, limit)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// Create paginated response (reusing the same structure as ServersHandler)
-		response := PaginatedResponse{
+		// Create paginated response with full server details
+		response := PaginatedResponseDetails{
 			Data: registries,
 		}
 

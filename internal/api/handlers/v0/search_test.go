@@ -21,6 +21,12 @@ func (m *MockRegistryService) Search(query string, registryName string, cursor s
 	return args.Get(0).([]model.Server), args.String(1), args.Error(2)
 }
 
+// Add SearchDetails method to MockRegistryService
+func (m *MockRegistryService) SearchDetails(query string, registryName string, cursor string, limit int) ([]model.ServerDetail, string, error) {
+	args := m.Mock.Called(query, registryName, cursor, limit)
+	return args.Get(0).([]model.ServerDetail), args.String(1), args.Error(2)
+}
+
 func TestSearchHandler(t *testing.T) {
 	testCases := []struct {
 		name            string
@@ -28,7 +34,7 @@ func TestSearchHandler(t *testing.T) {
 		queryParams     string
 		setupMocks      func(*MockRegistryService)
 		expectedStatus  int
-		expectedServers []model.Server
+		expectedServers []model.ServerDetail
 		expectedMeta    *v0.Metadata
 		expectedError   string
 	}{
@@ -37,8 +43,38 @@ func TestSearchHandler(t *testing.T) {
 			method: http.MethodGet,
 			queryParams: "?q=test",
 			setupMocks: func(registry *MockRegistryService) {
-				servers := []model.Server{
+				servers := []model.ServerDetail{
 					{
+						Server: model.Server{
+							ID:          "550e8400-e29b-41d4-a716-446655440001",
+							Name:        "test-server-1",
+							Description: "First test server",
+							Repository: model.Repository{
+								URL:    "https://github.com/example/test-server-1",
+								Source: "github",
+								ID:     "example/test-server-1",
+							},
+							VersionDetail: model.VersionDetail{
+								Version:     "1.0.0",
+								ReleaseDate: "2025-05-25T00:00:00Z",
+								IsLatest:    true,
+							},
+						},
+						Packages: []model.Package{
+							{
+								RegistryName: "npm",
+								Name:         "@test/server-1",
+								Version:      "1.0.0",
+							},
+						},
+					},
+				}
+				registry.Mock.On("SearchDetails", "test", "", "", 30).Return(servers, "", nil)
+			},
+			expectedStatus: http.StatusOK,
+			expectedServers: []model.ServerDetail{
+				{
+					Server: model.Server{
 						ID:          "550e8400-e29b-41d4-a716-446655440001",
 						Name:        "test-server-1",
 						Description: "First test server",
@@ -53,24 +89,12 @@ func TestSearchHandler(t *testing.T) {
 							IsLatest:    true,
 						},
 					},
-				}
-				registry.Mock.On("Search", "test", "", "", 30).Return(servers, "", nil)
-			},
-			expectedStatus: http.StatusOK,
-			expectedServers: []model.Server{
-				{
-					ID:          "550e8400-e29b-41d4-a716-446655440001",
-					Name:        "test-server-1",
-					Description: "First test server",
-					Repository: model.Repository{
-						URL:    "https://github.com/example/test-server-1",
-						Source: "github",
-						ID:     "example/test-server-1",
-					},
-					VersionDetail: model.VersionDetail{
-						Version:     "1.0.0",
-						ReleaseDate: "2025-05-25T00:00:00Z",
-						IsLatest:    true,
+					Packages: []model.Package{
+						{
+							RegistryName: "npm",
+							Name:         "@test/server-1",
+							Version:      "1.0.0",
+						},
 					},
 				},
 			},
@@ -80,8 +104,38 @@ func TestSearchHandler(t *testing.T) {
 			method: http.MethodGet,
 			queryParams: "?q=server&registry_name=npm",
 			setupMocks: func(registry *MockRegistryService) {
-				servers := []model.Server{
+				servers := []model.ServerDetail{
 					{
+						Server: model.Server{
+							ID:          "550e8400-e29b-41d4-a716-446655440002",
+							Name:        "npm-server",
+							Description: "NPM server",
+							Repository: model.Repository{
+								URL:    "https://github.com/example/npm-server",
+								Source: "github",
+								ID:     "example/npm-server",
+							},
+							VersionDetail: model.VersionDetail{
+								Version:     "2.0.0",
+								ReleaseDate: "2025-05-26T00:00:00Z",
+								IsLatest:    true,
+							},
+						},
+						Packages: []model.Package{
+							{
+								RegistryName: "npm",
+								Name:         "npm-server",
+								Version:      "2.0.0",
+							},
+						},
+					},
+				}
+				registry.Mock.On("SearchDetails", "server", "npm", "", 30).Return(servers, "", nil)
+			},
+			expectedStatus: http.StatusOK,
+			expectedServers: []model.ServerDetail{
+				{
+					Server: model.Server{
 						ID:          "550e8400-e29b-41d4-a716-446655440002",
 						Name:        "npm-server",
 						Description: "NPM server",
@@ -96,24 +150,12 @@ func TestSearchHandler(t *testing.T) {
 							IsLatest:    true,
 						},
 					},
-				}
-				registry.Mock.On("Search", "server", "npm", "", 30).Return(servers, "", nil)
-			},
-			expectedStatus: http.StatusOK,
-			expectedServers: []model.Server{
-				{
-					ID:          "550e8400-e29b-41d4-a716-446655440002",
-					Name:        "npm-server",
-					Description: "NPM server",
-					Repository: model.Repository{
-						URL:    "https://github.com/example/npm-server",
-						Source: "github",
-						ID:     "example/npm-server",
-					},
-					VersionDetail: model.VersionDetail{
-						Version:     "2.0.0",
-						ReleaseDate: "2025-05-26T00:00:00Z",
-						IsLatest:    true,
+					Packages: []model.Package{
+						{
+							RegistryName: "npm",
+							Name:         "npm-server",
+							Version:      "2.0.0",
+						},
 					},
 				},
 			},
@@ -123,8 +165,32 @@ func TestSearchHandler(t *testing.T) {
 			method: http.MethodGet,
 			queryParams: "?q=test&cursor=550e8400-e29b-41d4-a716-446655440000&limit=10",
 			setupMocks: func(registry *MockRegistryService) {
-				servers := []model.Server{
+				servers := []model.ServerDetail{
 					{
+						Server: model.Server{
+							ID:          "550e8400-e29b-41d4-a716-446655440003",
+							Name:        "test-server-3",
+							Description: "Third test server",
+							Repository: model.Repository{
+								URL:    "https://github.com/example/test-server-3",
+								Source: "github",
+								ID:     "example/test-server-3",
+							},
+							VersionDetail: model.VersionDetail{
+								Version:     "1.5.0",
+								ReleaseDate: "2025-05-27T00:00:00Z",
+								IsLatest:    true,
+							},
+						},
+					},
+				}
+				nextCursor := uuid.New().String()
+				registry.Mock.On("SearchDetails", "test", "", mock.AnythingOfType("string"), 10).Return(servers, nextCursor, nil)
+			},
+			expectedStatus: http.StatusOK,
+			expectedServers: []model.ServerDetail{
+				{
+					Server: model.Server{
 						ID:          "550e8400-e29b-41d4-a716-446655440003",
 						Name:        "test-server-3",
 						Description: "Third test server",
@@ -139,26 +205,6 @@ func TestSearchHandler(t *testing.T) {
 							IsLatest:    true,
 						},
 					},
-				}
-				nextCursor := uuid.New().String()
-				registry.Mock.On("Search", "test", "", mock.AnythingOfType("string"), 10).Return(servers, nextCursor, nil)
-			},
-			expectedStatus: http.StatusOK,
-			expectedServers: []model.Server{
-				{
-					ID:          "550e8400-e29b-41d4-a716-446655440003",
-					Name:        "test-server-3",
-					Description: "Third test server",
-					Repository: model.Repository{
-						URL:    "https://github.com/example/test-server-3",
-						Source: "github",
-						ID:     "example/test-server-3",
-					},
-					VersionDetail: model.VersionDetail{
-						Version:     "1.5.0",
-						ReleaseDate: "2025-05-27T00:00:00Z",
-						IsLatest:    true,
-					},
 				},
 			},
 			expectedMeta: &v0.Metadata{
@@ -171,10 +217,10 @@ func TestSearchHandler(t *testing.T) {
 			method: http.MethodGet,
 			queryParams: "?q=nonexistent",
 			setupMocks: func(registry *MockRegistryService) {
-				registry.Mock.On("Search", "nonexistent", "", "", 30).Return([]model.Server{}, "", nil)
+				registry.Mock.On("SearchDetails", "nonexistent", "", "", 30).Return([]model.ServerDetail{}, "", nil)
 			},
 			expectedStatus:  http.StatusOK,
-			expectedServers: []model.Server{},
+			expectedServers: []model.ServerDetail{},
 		},
 		{
 			name:           "invalid cursor parameter",
@@ -213,7 +259,7 @@ func TestSearchHandler(t *testing.T) {
 			method: http.MethodGet,
 			queryParams: "?q=test",
 			setupMocks: func(registry *MockRegistryService) {
-				registry.Mock.On("Search", "test", "", "", 30).Return([]model.Server{}, "", errors.New("database connection error"))
+				registry.Mock.On("SearchDetails", "test", "", "", 30).Return([]model.ServerDetail{}, "", errors.New("database connection error"))
 			},
 			expectedStatus: http.StatusInternalServerError,
 			expectedError:  "database connection error",
@@ -230,11 +276,11 @@ func TestSearchHandler(t *testing.T) {
 			method:      http.MethodGet,
 			queryParams: "?q=test&limit=150",
 			setupMocks: func(registry *MockRegistryService) {
-				servers := []model.Server{}
-				registry.Mock.On("Search", "test", "", "", 100).Return(servers, "", nil)
+				servers := []model.ServerDetail{}
+				registry.Mock.On("SearchDetails", "test", "", "", 100).Return(servers, "", nil)
 			},
 			expectedStatus:  http.StatusOK,
-			expectedServers: []model.Server{},
+			expectedServers: []model.ServerDetail{},
 		},
 	}
 
@@ -268,7 +314,7 @@ func TestSearchHandler(t *testing.T) {
 				assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 
 				// Parse response body
-				var resp v0.PaginatedResponse
+				var resp v0.PaginatedResponseDetails
 				err = json.NewDecoder(rr.Body).Decode(&resp)
 				assert.NoError(t, err)
 
@@ -298,25 +344,34 @@ func TestSearchHandlerIntegration(t *testing.T) {
 	// Create mock registry service
 	mockRegistry := new(MockRegistryService)
 
-	servers := []model.Server{
+	servers := []model.ServerDetail{
 		{
-			ID:          "550e8400-e29b-41d4-a716-446655440004",
-			Name:        "integration-test-server",
-			Description: "Integration test server",
-			Repository: model.Repository{
-				URL:    "https://github.com/example/integration-test",
-				Source: "github",
-				ID:     "example/integration-test",
+			Server: model.Server{
+				ID:          "550e8400-e29b-41d4-a716-446655440004",
+				Name:        "integration-test-server",
+				Description: "Integration test server",
+				Repository: model.Repository{
+					URL:    "https://github.com/example/integration-test",
+					Source: "github",
+					ID:     "example/integration-test",
+				},
+				VersionDetail: model.VersionDetail{
+					Version:     "1.0.0",
+					ReleaseDate: "2025-05-27T00:00:00Z",
+					IsLatest:    true,
+				},
 			},
-			VersionDetail: model.VersionDetail{
-				Version:     "1.0.0",
-				ReleaseDate: "2025-05-27T00:00:00Z",
-				IsLatest:    true,
+			Packages: []model.Package{
+				{
+					RegistryName: "npm",
+					Name:         "@integration/test-server",
+					Version:      "1.0.0",
+				},
 			},
 		},
 	}
 
-	mockRegistry.Mock.On("Search", "integration", "", "", 30).Return(servers, "", nil)
+	mockRegistry.Mock.On("SearchDetails", "integration", "", "", 30).Return(servers, "", nil)
 
 	// Create test server
 	server := httptest.NewServer(v0.SearchHandler(mockRegistry))
@@ -343,7 +398,7 @@ func TestSearchHandlerIntegration(t *testing.T) {
 	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
 
 	// Parse response body
-	var paginatedResp v0.PaginatedResponse
+	var paginatedResp v0.PaginatedResponseDetails
 	err = json.NewDecoder(resp.Body).Decode(&paginatedResp)
 	assert.NoError(t, err)
 

@@ -143,3 +143,45 @@ func (s *registryServiceImpl) Search(query string, registryName string, cursor s
 
 	return result, nextCursor, nil
 }
+
+// SearchDetails searches for servers by name with optional registry_name filter and returns full details
+func (s *registryServiceImpl) SearchDetails(query string, registryName string, cursor string, limit int) ([]model.ServerDetail, string, error) {
+	// Create a timeout context for the database operation
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// If limit is not set or negative, use a default limit
+	if limit <= 0 {
+		limit = 30
+	}
+
+	// Build the filter map
+	filter := make(map[string]interface{})
+	
+	// Add regex search for name if query is provided
+	if query != "" {
+		filter["name"] = map[string]interface{}{
+			"$regex":   query,
+			"$options": "i", // Case-insensitive search
+		}
+	}
+	
+	// Add registry_name filter if provided
+	if registryName != "" {
+		filter["packages.registry_name"] = registryName
+	}
+
+	// Use the database's ListDetails method with search filters
+	entries, nextCursor, err := s.db.ListDetails(ctx, filter, cursor, limit)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Convert from []*model.ServerDetail to []model.ServerDetail
+	result := make([]model.ServerDetail, len(entries))
+	for i, entry := range entries {
+		result[i] = *entry
+	}
+
+	return result, nextCursor, nil
+}
