@@ -7,4 +7,6 @@ type RegistryService interface {
 	List(cursor string, limit int) ([]model.Server, string, error)
 	GetByID(id string) (*model.ServerDetail, error)
 	Publish(serverDetail *model.ServerDetail) error
+	Search(query string, registryName string, cursor string, limit int) ([]model.Server, string, error)
+	SearchDetails(query string, registryName string, cursor string, limit int) ([]model.ServerDetail, string, error)
 }
