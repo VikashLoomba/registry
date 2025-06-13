@@ -140,9 +140,22 @@ func (db *MemoryDB) List(
 					include = false
 				}
 			case "packages.registry_name":
-				// For memory DB, we would need to check packages array
-				// Since memory DB uses simplified Server model, this filter is not fully implemented
-				// This would need ServerDetail data to work properly
+				// Check if any package has the specified registry_name
+				// We need to look up the full ServerDetail from db.entries
+				hasRegistry := false
+				if registryName, ok := value.(string); ok {
+					if serverDetail, exists := db.entries[entry.ID]; exists {
+						for _, pkg := range serverDetail.Packages {
+							if pkg.RegistryName == registryName {
+								hasRegistry = true
+								break
+							}
+						}
+					}
+				}
+				if !hasRegistry {
+					include = false
+				}
 			case "repoUrl":
 				if entry.Repository.URL != value.(string) {
 					include = false
