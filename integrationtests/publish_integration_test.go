@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	v0 "github.com/modelcontextprotocol/registry/internal/api/handlers/v0"
@@ -47,6 +48,34 @@ func (m *MockAuthService) ValidateAuth(_ context.Context, authentication model.A
 	default:
 		return false, auth.ErrUnsupportedAuthMethod
 	}
+}
+
+func (m *MockAuthService) ValidateRegistryOwnerAuth(_ context.Context, token string) (bool, error) {
+	// For testing, accept any non-empty token as valid
+	return token != "", nil
+}
+
+func (m *MockAuthService) GenerateEphemeralTokenForGitHubUser(_ context.Context, githubToken string) (string, error) {
+	// For testing, return a mock ephemeral token
+	if githubToken == "" {
+		return "", fmt.Errorf("GitHub token is required")
+	}
+	return "mock_ephemeral_token_" + githubToken[:10], nil
+}
+
+func (m *MockAuthService) ValidateEphemeralOrOwnerToken(_ context.Context, token string) (bool, *auth.EphemeralTokenClaims, error) {
+	// For testing, accept any token starting with "mock_ephemeral_token_" as valid ephemeral token
+	// and any other non-empty token as valid owner token
+	if strings.HasPrefix(token, "mock_ephemeral_token_") {
+		return true, &auth.EphemeralTokenClaims{
+			GitHubUserID:   "123456",
+			GitHubUsername: "testuser",
+		}, nil
+	}
+	if token != "" {
+		return true, nil, nil // Valid owner token
+	}
+	return false, nil, fmt.Errorf("invalid token")
 }
 
 // TestPublishIntegration tests the complete flow of publishing a server using the fake service

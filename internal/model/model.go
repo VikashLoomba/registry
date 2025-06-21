@@ -23,6 +23,11 @@ type PublishRequest struct {
 	AuthStatusToken string `json:"-"` // Used internally for device flows
 }
 
+// PublishOSSRequest represents a request to publish an open source server from a GitHub URL
+type PublishOSSRequest struct {
+	RepositoryURL string `json:"repository_url"`
+}
+
 // Repository represents a source code repository as defined in the spec
 type Repository struct {
 	URL    string `json:"url" bson:"url"`
