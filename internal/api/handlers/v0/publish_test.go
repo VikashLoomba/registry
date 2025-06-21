@@ -57,6 +57,24 @@ func (m *MockAuthService) ValidateAuth(ctx context.Context, authentication model
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *MockAuthService) ValidateRegistryOwnerAuth(ctx context.Context, token string) (bool, error) {
+	args := m.Mock.Called(ctx, token)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockAuthService) GenerateEphemeralTokenForGitHubUser(ctx context.Context, githubToken string) (string, error) {
+	args := m.Mock.Called(ctx, githubToken)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockAuthService) ValidateEphemeralOrOwnerToken(ctx context.Context, token string) (bool, *auth.EphemeralTokenClaims, error) {
+	args := m.Mock.Called(ctx, token)
+	if args.Get(1) == nil {
+		return args.Bool(0), nil, args.Error(2)
+	}
+	return args.Bool(0), args.Get(1).(*auth.EphemeralTokenClaims), args.Error(2)
+}
+
 func TestPublishHandler(t *testing.T) {
 	testCases := []struct {
 		name             string

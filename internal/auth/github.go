@@ -55,6 +55,19 @@ type TokenValidationResponse struct {
 	Error       string   `json:"error,omitempty"`
 }
 
+// GitHubRepoInfo represents repository information from GitHub API
+type GitHubRepoInfo struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	FullName    string `json:"full_name"`
+	Description string `json:"description"`
+	HTMLURL     string `json:"html_url"`
+	Private     bool   `json:"private"`
+	Owner       struct {
+		Login string `json:"login"`
+	} `json:"owner"`
+}
+
 // GitHubDeviceAuth provides methods for GitHub device OAuth authentication
 type GitHubDeviceAuth struct {
 	config GitHubOAuthConfig
@@ -247,4 +260,130 @@ func (g *GitHubDeviceAuth) checkOrgMembership(ctx context.Context, token, userna
 	}
 
 	return false, fmt.Errorf("failed to check org membership: status %d", resp.StatusCode)
+}
+
+// ValidateTokenForOwner validates if a GitHub token belongs to a specific GitHub user
+// and is associated with our ClientID
+func (g *GitHubDeviceAuth) ValidateTokenForOwner(ctx context.Context, token string, expectedUsername string) (bool, error) {
+	// First, validate that the token is associated with our ClientID
+	tokenReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		"https://api.github.com/applications/"+g.config.ClientID+"/token",
+		nil,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	// Create request body with the token
+	type tokenCheck struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	checkBody, err := json.Marshal(tokenCheck{AccessToken: token})
+	if err != nil {
+		return false, err
+	}
+
+	tokenReq.Body = io.NopCloser(bytes.NewReader(checkBody))
+	tokenReq.SetBasicAuth(g.config.ClientID, g.config.ClientSecret)
+	tokenReq.Header.Set("Accept", "application/vnd.github+json")
+	tokenReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	tokenResp, err := client.Do(tokenReq)
+	if err != nil {
+		return false, err
+	}
+	defer tokenResp.Body.Close()
+
+	// Check response - 200 means token is valid and associated with our app
+	if tokenResp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("token is not associated with this application (status: %d)", tokenResp.StatusCode)
+	}
+
+	// Get the authenticated user
+	userReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
+	if err != nil {
+		return false, err
+	}
+
+	userReq.Header.Set("Accept", "application/vnd.github+json")
+	userReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	userResp, err := client.Do(userReq)
+	if err != nil {
+		return false, err
+	}
+	defer userResp.Body.Close()
+
+	if userResp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("failed to get user info: status %d", userResp.StatusCode)
+	}
+
+	var userInfo struct {
+		Login string `json:"login"`
+	}
+
+	userBody, err := io.ReadAll(userResp.Body)
+	if err != nil {
+		return false, err
+	}
+
+	if err := json.Unmarshal(userBody, &userInfo); err != nil {
+		return false, err
+	}
+
+	// Check if the authenticated user matches the expected username
+	if userInfo.Login != expectedUsername {
+		return false, fmt.Errorf("token belongs to user %s, but expected %s", userInfo.Login, expectedUsername)
+	}
+
+	return true, nil
+}
+
+// FetchRepositoryInfo fetches repository information from GitHub API
+func (g *GitHubDeviceAuth) FetchRepositoryInfo(ctx context.Context, token, owner, repo string) (*GitHubRepoInfo, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("repository not found or not accessible")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch repository info: status %d", resp.StatusCode)
+	}
+
+	var repoInfo GitHubRepoInfo
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(body, &repoInfo); err != nil {
+		return nil, err
+	}
+
+	// Check if repository is private
+	if repoInfo.Private {
+		return nil, fmt.Errorf("repository is private, OSS publishing only supports public repositories")
+	}
+
+	return &repoInfo, nil
 }
