@@ -53,6 +53,10 @@ func NewMongoDB(ctx context.Context, connectionURI, databaseName, collectionName
 			Keys:    bson.D{bson.E{Key: "name", Value: 1}, bson.E{Key: "versiondetail.version", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
+		// Add text index on name field for text search (prevents ReDoS attacks)
+		{
+			Keys: bson.D{bson.E{Key: "name", Value: "text"}},
+		},
 	}
 
 	_, err = collection.Indexes().CreateMany(ctx, models)
@@ -100,6 +104,8 @@ func (db *MongoDB) List(
 			mongoFilter["version_detail.version"] = v
 		case "name":
 			mongoFilter["name"] = v
+		case "packages.registry_name":
+			mongoFilter["packages.registry_name"] = v
 		default:
 			mongoFilter[k] = v
 		}
@@ -146,6 +152,96 @@ func (db *MongoDB) List(
 
 	// Decode results
 	var results []*model.Server
+	if err = mongoCursor.All(ctx, &results); err != nil {
+		return nil, "", err
+	}
+
+	// Determine the next cursor
+	nextCursor := ""
+	if len(results) > 0 && limit > 0 && len(results) >= limit {
+		// Use the last item's ID as the next cursor
+		nextCursor = results[len(results)-1].ID
+	}
+
+	return results, nextCursor, nil
+}
+
+// ListDetails retrieves ServerDetail entries with optional filtering and pagination
+func (db *MongoDB) ListDetails(
+	ctx context.Context,
+	filter map[string]interface{},
+	cursor string,
+	limit int,
+) ([]*model.ServerDetail, string, error) {
+	if limit <= 0 {
+		// Set default limit if not provided
+		limit = 10
+	}
+
+	if ctx.Err() != nil {
+		return nil, "", ctx.Err()
+	}
+
+	// Convert Go map to MongoDB filter
+	mongoFilter := bson.M{
+		"version_detail.is_latest": true,
+	}
+	// Map common filter keys to MongoDB document paths
+	for k, v := range filter {
+		// Handle nested fields with dot notation
+		switch k {
+		case "version":
+			mongoFilter["version_detail.version"] = v
+		case "name":
+			mongoFilter["name"] = v
+		case "packages.registry_name":
+			mongoFilter["packages.registry_name"] = v
+		default:
+			mongoFilter[k] = v
+		}
+	}
+
+	// Setup pagination options
+	findOptions := options.Find()
+
+	// If cursor is provided, add condition to filter to only get records after the cursor
+	if cursor != "" {
+		// Validate that the cursor is a valid UUID
+		if _, err := uuid.Parse(cursor); err != nil {
+			return nil, "", fmt.Errorf("invalid cursor format: %w", err)
+		}
+
+		// Fetch the document at the cursor to get its sort values
+		var cursorDoc model.ServerDetail
+		err := db.collection.FindOne(ctx, bson.M{"id": cursor}).Decode(&cursorDoc)
+		if err != nil {
+			if !errors.Is(err, mongo.ErrNoDocuments) {
+				return nil, "", err
+			}
+			// If cursor document not found, start from beginning
+		} else {
+			// Use the cursor document's ID to paginate (records with ID > cursor's ID)
+			mongoFilter["id"] = bson.M{"$gt": cursor}
+		}
+	}
+
+	// Set sort order by ID (for consistent pagination)
+	findOptions.SetSort(bson.M{"id": 1})
+
+	// Set limit if provided and valid
+	if limit > 0 {
+		findOptions.SetLimit(int64(limit))
+	}
+
+	// Execute find operation with options
+	mongoCursor, err := db.collection.Find(ctx, mongoFilter, findOptions)
+	if err != nil {
+		return nil, "", err
+	}
+	defer mongoCursor.Close(ctx)
+
+	// Decode results
+	var results []*model.ServerDetail
 	if err = mongoCursor.All(ctx, &results); err != nil {
 		return nil, "", err
 	}

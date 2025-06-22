@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/modelcontextprotocol/registry/internal/model"
 )
@@ -15,6 +16,15 @@ var (
 	ErrUnsupportedAuthMethod = errors.New("unsupported authentication method")
 )
 
+// EphemeralTokenClaims represents the claims in an ephemeral token
+type EphemeralTokenClaims struct {
+	GitHubUserID   string    `json:"github_user_id"`
+	GitHubUsername string    `json:"github_username"`
+	IssuedAt       time.Time `json:"issued_at"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	Nonce          string    `json:"nonce"`
+}
+
 // Service defines the authentication service interface
 type Service interface {
 	// StartAuthFlow initiates an authentication flow and returns the flow information
@@ -25,4 +35,13 @@ type Service interface {
 
 	// ValidateAuth validates the authentication credentials
 	ValidateAuth(ctx context.Context, auth model.Authentication) (bool, error)
+
+	// ValidateRegistryOwnerAuth validates that the token belongs to the registry owner
+	ValidateRegistryOwnerAuth(ctx context.Context, token string) (bool, error)
+
+	// GenerateEphemeralTokenForGitHubUser validates a GitHub token and generates an ephemeral token
+	GenerateEphemeralTokenForGitHubUser(ctx context.Context, githubToken string) (string, error)
+
+	// ValidateEphemeralOrOwnerToken validates either an ephemeral token or registry owner token
+	ValidateEphemeralOrOwnerToken(ctx context.Context, token string) (bool, *EphemeralTokenClaims, error)
 }

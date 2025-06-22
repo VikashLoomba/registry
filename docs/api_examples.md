@@ -1,5 +1,59 @@
 # Examples
 
+## /v0/search
+
+### Request
+
+Search by name (default):
+```http
+GET /v0/search?q=filesystem
+```
+
+Search with registry_name filter:
+```http
+GET /v0/search?q=filesystem&registry_name=npm
+```
+
+Search with pagination:
+```http
+GET /v0/search?q=modelcontext&limit=10&cursor=550e8400-e29b-41d4-a716-446655440001
+```
+
+### Response
+
+```json
+{
+  "servers": [
+    {
+      "id": "a5e8a7f0-d4e4-4a1d-b12f-2896a23fd4f1",
+      "name": "io.modelcontextprotocol/filesystem",
+      "description": "Node.js server implementing Model Context Protocol (MCP) for filesystem operations.",
+      "repository": {
+        "url": "https://github.com/modelcontextprotocol/servers",
+        "source": "github",
+        "id": "b94b5f7e-c7c6-d760-2c78-a5e9b8a5b8c9"
+      },
+      "version_detail": {
+        "version": "1.0.2",
+        "release_date": "2023-06-15T10:30:00Z",
+        "is_latest": true
+      }
+    }
+  ],
+  "metadata": {
+    "next_cursor": "550e8400-e29b-41d4-a716-446655440002",
+    "count": 1
+  }
+}
+```
+
+### Query Parameters
+
+- `q`: Search query string for text matching against server names (case-insensitive)
+- `registry_name`: Filter results to only show servers available in the specified registry (e.g., "npm", "docker")
+- `cursor`: Pagination cursor for retrieving next set of results
+- `limit`: Maximum number of entries to return (default: 30, max: 100)
+
 ## /v0/servers
 
 ### Request

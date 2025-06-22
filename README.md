@@ -13,12 +13,13 @@ The MCP Registry service provides a centralized repository for MCP server entrie
 ## Features
 
 - RESTful API for managing MCP registry entries (list, get, create, update, delete)
+- Search functionality with text matching and registry filtering
 - Health check endpoint for service monitoring
 - Support for various environment configurations
 - Graceful shutdown handling
 - MongoDB and in-memory database support
 - Comprehensive API documentation
-- Pagination support for listing registry entries
+- Pagination support for listing and search operations
 
 ## Getting Started
 
@@ -126,6 +127,47 @@ Response example:
   "metadata": {
     "next_cursor": "123e4567-e89b-12d3-a456-426614174000",
     "count": 30
+  }
+}
+```
+
+#### Search Registry Server Entries
+
+```
+GET /v0/search
+```
+
+Searches MCP registry server entries with text matching and filtering capabilities.
+
+Query parameters:
+- `q`: Search query string for text matching against server names (case-insensitive)
+- `registry_name`: Filter results to only show servers available in the specified registry (e.g., "npm", "docker")
+- `limit`: Maximum number of entries to return (default: 30, max: 100)
+- `cursor`: Pagination cursor for retrieving next set of results
+
+Response example:
+```json
+{
+  "servers": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "io.modelcontextprotocol/filesystem",
+      "description": "MCP server for filesystem operations",
+      "repository": {
+        "url": "https://github.com/modelcontextprotocol/servers",
+        "source": "github",
+        "id": "b94b5f7e-c7c6-d760-2c78-a5e9b8a5b8c9"
+      },
+      "version_detail": {
+        "version": "1.0.2",
+        "release_date": "2023-06-15T10:30:00Z",
+        "is_latest": true
+      }
+    }
+  ],
+  "metadata": {
+    "next_cursor": "123e4567-e89b-12d3-a456-426614174001",
+    "count": 10
   }
 }
 ```
