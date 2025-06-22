@@ -344,6 +344,7 @@ func (g *GitHubDeviceAuth) ValidateTokenForOwner(ctx context.Context, token stri
 }
 
 // FetchRepositoryInfo fetches repository information from GitHub API
+// For public repositories, we don't need authentication
 func (g *GitHubDeviceAuth) FetchRepositoryInfo(ctx context.Context, token, owner, repo string) (*GitHubRepoInfo, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
 
@@ -353,7 +354,13 @@ func (g *GitHubDeviceAuth) FetchRepositoryInfo(ctx context.Context, token, owner
 	}
 
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	
+	// Only add authorization header if we have a valid GitHub token
+	// For public repositories, we can fetch info without authentication
+	// This allows ephemeral token holders to publish public OSS projects
+	if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
