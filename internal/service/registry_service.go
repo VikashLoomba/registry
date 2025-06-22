@@ -103,7 +103,7 @@ func (s *registryServiceImpl) Publish(serverDetail *model.ServerDetail) error {
 }
 
 // Search searches for servers by name with optional registry_name filter
-func (s *registryServiceImpl) Search(query string, registryName string, cursor string, limit int) ([]model.Server, string, error) {
+func (s *registryServiceImpl) Search(query string, registryName string, url string, cursor string, limit int) ([]model.Server, string, error) {
 	// Create a timeout context for the database operation
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -126,6 +126,11 @@ func (s *registryServiceImpl) Search(query string, registryName string, cursor s
 	// Add registry_name filter if provided
 	if registryName != "" {
 		filter["packages.registry_name"] = registryName
+	}
+
+	// Add URL filter if provided - exact match for security
+	if url != "" {
+		filter["repository.url"] = url
 	}
 
 	// Use the database's List method with search filters
@@ -144,7 +149,7 @@ func (s *registryServiceImpl) Search(query string, registryName string, cursor s
 }
 
 // SearchDetails searches for servers by name with optional registry_name filter and returns full details
-func (s *registryServiceImpl) SearchDetails(query string, registryName string, cursor string, limit int) ([]model.ServerDetail, string, error) {
+func (s *registryServiceImpl) SearchDetails(query string, registryName string, url string, cursor string, limit int) ([]model.ServerDetail, string, error) {
 	// Create a timeout context for the database operation
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -167,6 +172,11 @@ func (s *registryServiceImpl) SearchDetails(query string, registryName string, c
 	// Add registry_name filter if provided
 	if registryName != "" {
 		filter["packages.registry_name"] = registryName
+	}
+
+	// Add URL filter if provided - exact match for security
+	if url != "" {
+		filter["repository.url"] = url
 	}
 
 	// Use the database's ListDetails method with search filters

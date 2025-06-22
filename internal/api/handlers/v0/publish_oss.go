@@ -71,6 +71,28 @@ func PublishOSSHandler(registry service.RegistryService, authService auth.Servic
 			return
 		}
 
+		// Validate that at least one package is provided
+		if len(ossReq.Packages) == 0 {
+			http.Error(w, "At least one package is required", http.StatusBadRequest)
+			return
+		}
+
+		// Validate package fields
+		for i, pkg := range ossReq.Packages {
+			if pkg.RegistryName == "" {
+				http.Error(w, fmt.Sprintf("Package %d: registry_name is required", i), http.StatusBadRequest)
+				return
+			}
+			if pkg.Name == "" {
+				http.Error(w, fmt.Sprintf("Package %d: name is required", i), http.StatusBadRequest)
+				return
+			}
+			if pkg.Version == "" {
+				http.Error(w, fmt.Sprintf("Package %d: version is required", i), http.StatusBadRequest)
+				return
+			}
+		}
+
 		// Extract owner and repo from GitHub URL
 		owner, repo, err := extractGitHubRepo(ossReq.RepositoryURL)
 		if err != nil {
@@ -80,7 +102,7 @@ func PublishOSSHandler(registry service.RegistryService, authService auth.Servic
 
 		// Check if a server with this name already exists in the registry
 		expectedServerName := fmt.Sprintf("io.github.%s/%s", owner, repo)
-		existingServers, _, err := registry.Search(expectedServerName, "", "", 1)
+		existingServers, _, err := registry.Search(expectedServerName, "", "", "", 1)
 		if err != nil {
 			http.Error(w, "Failed to check existing servers: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -138,8 +160,7 @@ func PublishOSSHandler(registry service.RegistryService, authService auth.Servic
 					IsLatest:    true,
 				},
 			},
-			// Packages can be left empty for basic OSS publishing
-			// They can be added later through the regular publish endpoint
+			Packages: ossReq.Packages,
 		}
 
 		// Call the publish method on the registry service

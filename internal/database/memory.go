@@ -156,7 +156,7 @@ func (db *MemoryDB) List(
 				if !hasRegistry {
 					include = false
 				}
-			case "repoUrl":
+			case "repository.url":
 				if entry.Repository.URL != value.(string) {
 					include = false
 				}
@@ -397,7 +397,7 @@ func (db *MemoryDB) ListDetails(
 				if !hasRegistry {
 					include = false
 				}
-			case "repoUrl":
+			case "repository.url":
 				if entry.Repository.URL != value.(string) {
 					include = false
 				}

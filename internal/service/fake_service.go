@@ -124,7 +124,7 @@ func (s *fakeRegistryService) Publish(serverDetail *model.ServerDetail) error {
 }
 
 // Search searches for servers by name with optional registry_name filter
-func (s *fakeRegistryService) Search(query string, registryName string, cursor string, limit int) ([]model.Server, string, error) {
+func (s *fakeRegistryService) Search(query string, registryName string, url string, cursor string, limit int) ([]model.Server, string, error) {
 	// Create a timeout context for the database operation
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -136,7 +136,7 @@ func (s *fakeRegistryService) Search(query string, registryName string, cursor s
 
 	// Build the filter map
 	filter := make(map[string]interface{})
-	
+
 	// Add regex search for name if query is provided
 	if query != "" {
 		filter["name"] = map[string]interface{}{
@@ -144,7 +144,7 @@ func (s *fakeRegistryService) Search(query string, registryName string, cursor s
 			"$options": "i", // Case-insensitive search
 		}
 	}
-	
+
 	// Add registry_name filter if provided
 	if registryName != "" {
 		filter["packages.registry_name"] = registryName
@@ -166,7 +166,7 @@ func (s *fakeRegistryService) Search(query string, registryName string, cursor s
 }
 
 // SearchDetails searches for servers by name with optional registry_name filter and returns full details
-func (s *fakeRegistryService) SearchDetails(query string, registryName string, cursor string, limit int) ([]model.ServerDetail, string, error) {
+func (s *fakeRegistryService) SearchDetails(query string, registryName string, url string, cursor string, limit int) ([]model.ServerDetail, string, error) {
 	// Create a timeout context for the database operation
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -178,7 +178,7 @@ func (s *fakeRegistryService) SearchDetails(query string, registryName string, c
 
 	// Build the filter map
 	filter := make(map[string]interface{})
-	
+
 	// Add regex search for name if query is provided
 	if query != "" {
 		filter["name"] = map[string]interface{}{
@@ -186,7 +186,7 @@ func (s *fakeRegistryService) SearchDetails(query string, registryName string, c
 			"$options": "i", // Case-insensitive search
 		}
 	}
-	
+
 	// Add registry_name filter if provided
 	if registryName != "" {
 		filter["packages.registry_name"] = registryName

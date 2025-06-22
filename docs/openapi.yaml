@@ -49,7 +49,7 @@ paths:
   /v0/search:
     get:
       summary: Search MCP servers
-      description: Search for MCP servers by name with optional filtering by registry
+      description: Search for MCP servers by name with optional filtering by registry and repository URL
       parameters:
         - name: q
           in: query
@@ -62,6 +62,13 @@ paths:
           description: Filter results to only show servers available in the specified registry (e.g., "npm", "docker")
           schema:
             type: string
+          required: false
+        - name: url
+          in: query
+          description: Filter results to only show servers with the specified repository URL (exact match)
+          schema:
+            type: string
+            format: uri
           required: false
         - name: limit
           in: query
@@ -126,8 +133,9 @@ paths:
     post:
       summary: Publish open source MCP server
       description: |
-        Publishes an open source MCP server to the registry by providing a GitHub repository URL.
-        The endpoint automatically fetches repository information and creates server metadata.
+        Publishes an open source MCP server to the registry by providing a GitHub repository URL
+        and package information. The endpoint automatically fetches repository information and creates 
+        server metadata. At least one package must be provided in the request.
         Requires either an ephemeral token (from /v0/authorize) or registry owner token.
       security:
         - BearerAuth: []
@@ -507,6 +515,7 @@ components:
       type: object
       required:
         - repository_url
+        - packages
       properties:
         repository_url:
           type: string
@@ -517,6 +526,12 @@ components:
             - https://github.com/owner/repo.git
             - git@github.com:owner/repo.git
           example: "https://github.com/modelcontextprotocol/servers"
+        packages:
+          type: array
+          description: List of packages for the MCP server (at least one package is required)
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Package'
 
     PublishOSSResponse:
       type: object

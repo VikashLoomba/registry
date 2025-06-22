@@ -25,7 +25,8 @@ type PublishRequest struct {
 
 // PublishOSSRequest represents a request to publish an open source server from a GitHub URL
 type PublishOSSRequest struct {
-	RepositoryURL string `json:"repository_url"`
+	RepositoryURL string    `json:"repository_url"`
+	Packages      []Package `json:"packages"`
 }
 
 // Repository represents a source code repository as defined in the spec

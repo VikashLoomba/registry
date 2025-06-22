@@ -4,6 +4,7 @@ package v0
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -28,8 +29,18 @@ func SearchHandler(registry service.RegistryService) http.HandlerFunc {
 		// Parse query parameters
 		query := r.URL.Query().Get("q")
 		registryName := r.URL.Query().Get("registry_name")
+		urlParam := r.URL.Query().Get("url")
 		cursor := r.URL.Query().Get("cursor")
 		limitStr := r.URL.Query().Get("limit")
+
+		// Validate URL parameter if provided
+		if urlParam != "" {
+			_, err := url.ParseRequestURI(urlParam)
+			if err != nil {
+				http.Error(w, "Invalid URL parameter", http.StatusBadRequest)
+				return
+			}
+		}
 
 		// Validate cursor if provided
 		if cursor != "" {
@@ -66,7 +77,7 @@ func SearchHandler(registry service.RegistryService) http.HandlerFunc {
 		}
 
 		// Use the SearchDetails method to get filtered results with full server details
-		registries, nextCursor, err := registry.SearchDetails(query, registryName, cursor, limit)
+		registries, nextCursor, err := registry.SearchDetails(query, registryName, urlParam, cursor, limit)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

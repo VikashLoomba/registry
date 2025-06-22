@@ -43,6 +43,14 @@ func main() {
 	// Initialize configuration
 	cfg := config.NewConfig()
 
+	// Validate required environment variables
+	if err := cfg.Validate(); err != nil {
+		log.Printf("Configuration validation failed: %v", err)
+		// exit with error code 1
+		os.Exit(1)
+		return
+	}
+
 	// Initialize services based on environment
 	switch cfg.DatabaseType {
 	case config.DatabaseTypeMemory:

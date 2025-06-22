@@ -15,17 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Add Search method to MockRegistryService (defined in publish_test.go)
-func (m *MockRegistryService) Search(query string, registryName string, cursor string, limit int) ([]model.Server, string, error) {
-	args := m.Mock.Called(query, registryName, cursor, limit)
-	return args.Get(0).([]model.Server), args.String(1), args.Error(2)
-}
-
-// Add SearchDetails method to MockRegistryService
-func (m *MockRegistryService) SearchDetails(query string, registryName string, cursor string, limit int) ([]model.ServerDetail, string, error) {
-	args := m.Mock.Called(query, registryName, cursor, limit)
-	return args.Get(0).([]model.ServerDetail), args.String(1), args.Error(2)
-}
+// MockRegistryService Search and SearchDetails methods are defined in publish_test.go
 
 func TestSearchHandler(t *testing.T) {
 	testCases := []struct {
@@ -39,8 +29,8 @@ func TestSearchHandler(t *testing.T) {
 		expectedError   string
 	}{
 		{
-			name:   "successful search with query only",
-			method: http.MethodGet,
+			name:        "successful search with query only",
+			method:      http.MethodGet,
 			queryParams: "?q=test",
 			setupMocks: func(registry *MockRegistryService) {
 				servers := []model.ServerDetail{
@@ -69,7 +59,7 @@ func TestSearchHandler(t *testing.T) {
 						},
 					},
 				}
-				registry.Mock.On("SearchDetails", "test", "", "", 30).Return(servers, "", nil)
+				registry.Mock.On("SearchDetails", "test", "", "", "", 30).Return(servers, "", nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedServers: []model.ServerDetail{
@@ -100,8 +90,8 @@ func TestSearchHandler(t *testing.T) {
 			},
 		},
 		{
-			name:   "successful search with registry_name filter",
-			method: http.MethodGet,
+			name:        "successful search with registry_name filter",
+			method:      http.MethodGet,
 			queryParams: "?q=server&registry_name=npm",
 			setupMocks: func(registry *MockRegistryService) {
 				servers := []model.ServerDetail{
@@ -130,7 +120,7 @@ func TestSearchHandler(t *testing.T) {
 						},
 					},
 				}
-				registry.Mock.On("SearchDetails", "server", "npm", "", 30).Return(servers, "", nil)
+				registry.Mock.On("SearchDetails", "server", "npm", "", "", 30).Return(servers, "", nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedServers: []model.ServerDetail{
@@ -161,8 +151,8 @@ func TestSearchHandler(t *testing.T) {
 			},
 		},
 		{
-			name:   "successful search with pagination",
-			method: http.MethodGet,
+			name:        "successful search with pagination",
+			method:      http.MethodGet,
 			queryParams: "?q=test&cursor=550e8400-e29b-41d4-a716-446655440000&limit=10",
 			setupMocks: func(registry *MockRegistryService) {
 				servers := []model.ServerDetail{
@@ -185,7 +175,7 @@ func TestSearchHandler(t *testing.T) {
 					},
 				}
 				nextCursor := uuid.New().String()
-				registry.Mock.On("SearchDetails", "test", "", mock.AnythingOfType("string"), 10).Return(servers, nextCursor, nil)
+				registry.Mock.On("SearchDetails", "test", "", "", mock.AnythingOfType("string"), 10).Return(servers, nextCursor, nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedServers: []model.ServerDetail{
@@ -213,11 +203,11 @@ func TestSearchHandler(t *testing.T) {
 			},
 		},
 		{
-			name:   "search with no results",
-			method: http.MethodGet,
+			name:        "search with no results",
+			method:      http.MethodGet,
 			queryParams: "?q=nonexistent",
 			setupMocks: func(registry *MockRegistryService) {
-				registry.Mock.On("SearchDetails", "nonexistent", "", "", 30).Return([]model.ServerDetail{}, "", nil)
+				registry.Mock.On("SearchDetails", "nonexistent", "", "", "", 30).Return([]model.ServerDetail{}, "", nil)
 			},
 			expectedStatus:  http.StatusOK,
 			expectedServers: []model.ServerDetail{},
@@ -255,11 +245,11 @@ func TestSearchHandler(t *testing.T) {
 			expectedError:  "Limit must be greater than 0",
 		},
 		{
-			name:   "registry service error",
-			method: http.MethodGet,
+			name:        "registry service error",
+			method:      http.MethodGet,
 			queryParams: "?q=test",
 			setupMocks: func(registry *MockRegistryService) {
-				registry.Mock.On("SearchDetails", "test", "", "", 30).Return([]model.ServerDetail{}, "", errors.New("database connection error"))
+				registry.Mock.On("SearchDetails", "test", "", "", "", 30).Return([]model.ServerDetail{}, "", errors.New("database connection error"))
 			},
 			expectedStatus: http.StatusInternalServerError,
 			expectedError:  "database connection error",
@@ -277,7 +267,7 @@ func TestSearchHandler(t *testing.T) {
 			queryParams: "?q=test&limit=150",
 			setupMocks: func(registry *MockRegistryService) {
 				servers := []model.ServerDetail{}
-				registry.Mock.On("SearchDetails", "test", "", "", 100).Return(servers, "", nil)
+				registry.Mock.On("SearchDetails", "test", "", "", "", 100).Return(servers, "", nil)
 			},
 			expectedStatus:  http.StatusOK,
 			expectedServers: []model.ServerDetail{},
@@ -371,7 +361,7 @@ func TestSearchHandlerIntegration(t *testing.T) {
 		},
 	}
 
-	mockRegistry.Mock.On("SearchDetails", "integration", "", "", 30).Return(servers, "", nil)
+	mockRegistry.Mock.On("SearchDetails", "integration", "", "", "", 30).Return(servers, "", nil)
 
 	// Create test server
 	server := httptest.NewServer(v0.SearchHandler(mockRegistry))

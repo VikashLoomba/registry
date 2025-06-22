@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+	"strings"
+
 	env "github.com/caarlos0/env/v11"
 )
 
@@ -14,6 +17,7 @@ const (
 // Config holds the application configuration
 type Config struct {
 	ServerAddress               string       `env:"SERVER_ADDRESS" envDefault:":8080"`
+	Environment                 string       `env:"ENVIRONMENT" envDefault:"development"`
 	DatabaseType                DatabaseType `env:"DATABASE_TYPE" envDefault:"mongodb"`
 	DatabaseURL                 string       `env:"DATABASE_URL" envDefault:"mongodb://localhost:27017"`
 	DatabaseName                string       `env:"DATABASE_NAME" envDefault:"mcp-registry"`
@@ -38,4 +42,26 @@ func NewConfig() *Config {
 		panic(err)
 	}
 	return &cfg
+}
+
+// Validate checks that all required environment variables are set
+func (c *Config) Validate() error {
+	var missingVars []string
+
+	// Check required GitHub configuration
+	if c.GithubClientID == "" {
+		missingVars = append(missingVars, "MCP_REGISTRY_GITHUB_CLIENT_ID")
+	}
+	if c.GithubClientSecret == "" {
+		missingVars = append(missingVars, "MCP_REGISTRY_GITHUB_CLIENT_SECRET")
+	}
+	if c.RegistryOwnerGithubUsername == "" {
+		missingVars = append(missingVars, "MCP_REGISTRY_REGISTRY_OWNER_GITHUB_USERNAME")
+	}
+
+	if len(missingVars) > 0 {
+		return fmt.Errorf("missing required environment variables: %s", strings.Join(missingVars, ", "))
+	}
+
+	return nil
 }
