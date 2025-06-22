@@ -93,11 +93,19 @@ func PublishOSSHandler(registry service.RegistryService, authService auth.Servic
 			}
 		}
 
-		// Extract owner and repo from GitHub URL
-		owner, repo, err := extractGitHubRepo(ossReq.RepositoryURL)
-		if err != nil {
-			http.Error(w, "Invalid GitHub repository URL: "+err.Error(), http.StatusBadRequest)
-			return
+		// Check if owner and repo are provided in the request body
+		var owner, repo string
+		if ossReq.Owner != "" && ossReq.Repo != "" {
+			owner = ossReq.Owner
+			repo = ossReq.Repo
+		} else {
+			// Extract owner and repo from GitHub URL
+			var err error
+			owner, repo, err = extractGitHubRepo(ossReq.RepositoryURL)
+			if err != nil {
+				http.Error(w, "Invalid GitHub repository URL: "+err.Error(), http.StatusBadRequest)
+				return
+			}
 		}
 
 		// Check if a server with this name already exists in the registry

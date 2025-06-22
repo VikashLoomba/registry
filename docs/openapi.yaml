@@ -526,6 +526,18 @@ components:
             - https://github.com/owner/repo.git
             - git@github.com:owner/repo.git
           example: "https://github.com/modelcontextprotocol/servers"
+        owner:
+          type: string
+          description: |
+            GitHub repository owner (optional). If provided along with 'repo', 
+            these values will be used instead of extracting from repository_url.
+          example: "modelcontextprotocol"
+        repo:
+          type: string
+          description: |
+            GitHub repository name (optional). If provided along with 'owner', 
+            these values will be used instead of extracting from repository_url.
+          example: "servers"
         packages:
           type: array
           description: List of packages for the MCP server (at least one package is required)
