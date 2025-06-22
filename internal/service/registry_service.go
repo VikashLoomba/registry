@@ -115,15 +115,14 @@ func (s *registryServiceImpl) Search(query string, registryName string, cursor s
 
 	// Build the filter map
 	filter := make(map[string]interface{})
-	
-	// Add regex search for name if query is provided
+
+	// Use MongoDB text search instead of regex to prevent ReDoS attacks
 	if query != "" {
-		filter["name"] = map[string]interface{}{
-			"$regex":   query,
-			"$options": "i", // Case-insensitive search
+		filter["$text"] = map[string]interface{}{
+			"$search": query,
 		}
 	}
-	
+
 	// Add registry_name filter if provided
 	if registryName != "" {
 		filter["packages.registry_name"] = registryName
@@ -157,15 +156,14 @@ func (s *registryServiceImpl) SearchDetails(query string, registryName string, c
 
 	// Build the filter map
 	filter := make(map[string]interface{})
-	
-	// Add regex search for name if query is provided
+
+	// Use MongoDB text search instead of regex to prevent ReDoS attacks
 	if query != "" {
-		filter["name"] = map[string]interface{}{
-			"$regex":   query,
-			"$options": "i", // Case-insensitive search
+		filter["$text"] = map[string]interface{}{
+			"$search": query,
 		}
 	}
-	
+
 	// Add registry_name filter if provided
 	if registryName != "" {
 		filter["packages.registry_name"] = registryName
