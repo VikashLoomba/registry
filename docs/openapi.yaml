@@ -91,6 +91,89 @@ paths:
             text/plain:
               schema:
                 type: string
+  /v0/authorize:
+    post:
+      summary: Generate ephemeral token for GitHub users
+      description: |
+        Validates a GitHub token and generates a short-lived ephemeral token that can be used 
+        to publish OSS servers to the registry. The ephemeral token expires after 1 hour.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizeRequest'
+      responses:
+        '200':
+          description: Ephemeral token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizeResponse'
+        '400':
+          description: Bad request (invalid or missing GitHub token)
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized (invalid GitHub token)
+          content:
+            text/plain:
+              schema:
+                type: string
+  /v0/publish-oss:
+    post:
+      summary: Publish open source MCP server
+      description: |
+        Publishes an open source MCP server to the registry by providing a GitHub repository URL.
+        The endpoint automatically fetches repository information and creates server metadata.
+        Requires either an ephemeral token (from /v0/authorize) or registry owner token.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishOSSRequest'
+      responses:
+        '201':
+          description: OSS server published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishOSSResponse'
+        '400':
+          description: Bad request (invalid repository URL or request payload)
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized (missing or invalid authorization token)
+          content:
+            text/plain:
+              schema:
+                type: string
+        '403':
+          description: Forbidden (valid token but insufficient permissions)
+          content:
+            text/plain:
+              schema:
+                type: string
+        '409':
+          description: Conflict (server with this name already exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
   /v0/servers/{id}:
     get:
       summary: Get MCP server details
@@ -126,6 +209,15 @@ paths:
                     type: string
                     example: "Server not found"
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: token
+      description: |
+        Bearer token authentication. Accepts either:
+        - Ephemeral token (obtained from /v0/authorize endpoint)
+        - Registry owner GitHub token
   schemas:
     jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"
     Repository:
@@ -385,3 +477,89 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Remote'
+
+    AuthorizeRequest:
+      type: object
+      required:
+        - github_token
+      properties:
+        github_token:
+          type: string
+          description: GitHub personal access token or OAuth token
+          example: "gho_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+    AuthorizeResponse:
+      type: object
+      required:
+        - ephemeral_token
+        - expires_in
+      properties:
+        ephemeral_token:
+          type: string
+          description: Base64-encoded ephemeral token for publishing OSS servers
+          example: "eyJjbGFpbXMiOnsibmFtZSI6ImpvaG4iLCJleHAiOjE2MjM0NTY3ODl9LCJzaWduYXR1cmUiOiJhYmMxMjMifQ=="
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds (always 3600 for 1 hour)
+          example: 3600
+
+    PublishOSSRequest:
+      type: object
+      required:
+        - repository_url
+      properties:
+        repository_url:
+          type: string
+          format: uri
+          description: |
+            GitHub repository URL in any supported format:
+            - https://github.com/owner/repo
+            - https://github.com/owner/repo.git
+            - git@github.com:owner/repo.git
+          example: "https://github.com/modelcontextprotocol/servers"
+
+    PublishOSSResponse:
+      type: object
+      required:
+        - message
+        - id
+        - name
+        - repository
+        - published_by
+      properties:
+        message:
+          type: string
+          example: "OSS server publication successful"
+        id:
+          type: string
+          format: uuid
+          description: Unique server ID assigned by the registry
+          example: "a5e8a7f0-d4e4-4a1d-b12f-2896a23fd4f1"
+        name:
+          type: string
+          description: Server name in the format io.github.owner/repo
+          example: "io.github.modelcontextprotocol/servers"
+        repository:
+          $ref: '#/components/schemas/Repository'
+        published_by:
+          type: string
+          description: GitHub username of the user who published the server
+          example: "octocat"
+
+    ConflictErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - name
+      properties:
+        error:
+          type: string
+          example: "Server already exists"
+        message:
+          type: string
+          example: "A server with name 'io.github.owner/repo' has already been published to the registry"
+        name:
+          type: string
+          description: The conflicting server name
+          example: "io.github.owner/repo"
