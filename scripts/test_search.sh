@@ -16,7 +16,7 @@ echo ""
 # Default values
 HOST="http://localhost:8085"
 QUERY=""
-URL="https://github.com/wonderwhy-er/DesktopCommanderMCP"
+URL=""
 
 # Display usage information
 function show_usage {

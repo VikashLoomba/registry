@@ -106,6 +106,12 @@ func (db *MongoDB) List(
 			mongoFilter["name"] = v
 		case "packages.registry_name":
 			mongoFilter["packages.registry_name"] = v
+		case "$text":
+			// MongoDB text search - pass through as-is
+			mongoFilter["$text"] = v
+		case "repository.url":
+			// Repository URL filter
+			mongoFilter["repository.url"] = v
 		default:
 			mongoFilter[k] = v
 		}
@@ -196,6 +202,12 @@ func (db *MongoDB) ListDetails(
 			mongoFilter["name"] = v
 		case "packages.registry_name":
 			mongoFilter["packages.registry_name"] = v
+		case "$text":
+			// MongoDB text search - pass through as-is
+			mongoFilter["$text"] = v
+		case "repository.url":
+			// Repository URL filter
+			mongoFilter["repository.url"] = v
 		default:
 			mongoFilter[k] = v
 		}

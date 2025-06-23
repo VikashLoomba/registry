@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"regexp"
 	"time"
 
 	"github.com/modelcontextprotocol/registry/internal/database"
@@ -162,7 +163,7 @@ func (s *registryServiceImpl) SearchDetails(query string, registryName string, u
 	// Build the filter map
 	filter := make(map[string]interface{})
 
-	// Use MongoDB text search instead of regex to prevent ReDoS attacks
+	// Use MongoDB text search for full-word matches
 	if query != "" {
 		filter["$text"] = map[string]interface{}{
 			"$search": query,
@@ -185,6 +186,38 @@ func (s *registryServiceImpl) SearchDetails(query string, registryName string, u
 		return nil, "", err
 	}
 
+	// If text search returned no results and we have a query, try with a case-insensitive regex
+	// This helps with partial matches and compound words
+	if len(entries) == 0 && query != "" {
+		// Remove text search and add regex search
+		delete(filter, "$text")
+		
+		// Escape special regex characters to prevent regex injection
+		escapedQuery := escapeRegex(query)
+		
+		// Create a safe regex pattern with case-insensitive search on multiple fields
+		filter["$or"] = []map[string]interface{}{
+			{"name": map[string]interface{}{
+				"$regex": escapedQuery,
+				"$options": "i",
+			}},
+			{"description": map[string]interface{}{
+				"$regex": escapedQuery,
+				"$options": "i",
+			}},
+			{"packages.name": map[string]interface{}{
+				"$regex": escapedQuery,
+				"$options": "i",
+			}},
+		}
+		
+		// Retry with regex search
+		entries, nextCursor, err = s.db.ListDetails(ctx, filter, cursor, limit)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
 	// Convert from []*model.ServerDetail to []model.ServerDetail
 	result := make([]model.ServerDetail, len(entries))
 	for i, entry := range entries {
@@ -192,4 +225,10 @@ func (s *registryServiceImpl) SearchDetails(query string, registryName string, u
 	}
 
 	return result, nextCursor, nil
+}
+
+// escapeRegex escapes special regex characters to prevent regex injection
+func escapeRegex(input string) string {
+	// Escape all special regex characters
+	return regexp.QuoteMeta(input)
 }
